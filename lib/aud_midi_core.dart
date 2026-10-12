@@ -13,6 +13,8 @@ export 'src/backend/midi_backend.dart';
 export 'src/backend/midi_backend_host.dart';
 export 'src/backend/midi_bluetooth_backend.dart';
 export 'src/backend/midi_composite_backend.dart';
+export 'src/backend/midi_native_tap.dart';
+export 'src/backend/midi_native_tap_backend.dart';
 export 'src/backend/midi_network_backend.dart';
 export 'src/backend/midi_service_advertiser.dart';
 export 'src/backend/midi_service_registration.dart';

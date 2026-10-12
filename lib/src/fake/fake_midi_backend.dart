@@ -10,6 +10,8 @@ import 'package:aud_midi_standard/aud_midi_standard.dart';
 
 import '../backend/midi_backend.dart';
 import '../backend/midi_backend_host.dart';
+import '../backend/midi_native_tap.dart';
+import '../backend/midi_native_tap_backend.dart';
 import '../clock/midi_timer_factory.dart';
 import '../error/midi_exception.dart';
 import 'midi_fake_bluetooth_backend.dart';
@@ -44,7 +46,9 @@ typedef MidiFakeSentPacket = ({
 /// - [failWith] makes calls throw, [holdCalls] keeps them pending.
 /// - [virtualPorts], [bluetooth] and [network] are in-memory sub-APIs whose
 ///   ports appear on this backend.
-final class FakeMidiBackend implements MidiBackend {
+/// - [attachNativeTap] and [detachNativeTap] record the taps of the inputs
+///   in [taps] and [calls]; nothing is ever called natively.
+final class FakeMidiBackend implements MidiBackend, MidiNativeTapBackend {
   /// Creates a fake backend.
   ///
   /// - [name] the backend name and port id prefix.
@@ -54,6 +58,7 @@ final class FakeMidiBackend implements MidiBackend {
   ///   scheduled in software.
   /// - [hasVirtualPorts], [hasBluetooth] and [hasNetwork] whether the
   ///   sub-APIs exist.
+  /// - [hasNativeTaps] whether the inputs take native taps.
   /// - [timerFactory] creates the timers of BLE scan timeouts.
   FakeMidiBackend({
     this.name = 'fake',
@@ -62,6 +67,7 @@ final class FakeMidiBackend implements MidiBackend {
     bool hasVirtualPorts = true,
     bool hasBluetooth = true,
     bool hasNetwork = true,
+    this.hasNativeTaps = true,
     this.timerFactory = Timer.new,
   }) : capabilities =
            capabilities ??
@@ -162,6 +168,41 @@ final class FakeMidiBackend implements MidiBackend {
   }
 
   // ...........................................................................
+  /// Returns whether [port] is a known input and the backend has native
+  /// taps ([hasNativeTaps]).
+  @override
+  bool supportsNativeTap(MidiPortId port) =>
+      hasNativeTaps && (_ports[port]?.isInput ?? false);
+
+  /// Records [tap] for the input [port] in [taps].
+  ///
+  /// Throws a [MidiPortGone] for an unknown port, an [ArgumentError] for an
+  /// output port, a [MidiUnsupported] without [hasNativeTaps] and a
+  /// [StateError] when a tap is attached already.
+  @override
+  Future<void> attachNativeTap(MidiPortId port, MidiNativeTap tap) async {
+    _call('attachNativeTap $port');
+    _throwIf(_failures.attachNativeTap);
+    final info = _require(port);
+    if (!info.isInput) throw ArgumentError.value(port, 'port', 'Not an input');
+    if (!hasNativeTaps) throw MidiUnsupported('Native taps on $port');
+    if (_taps.containsKey(port)) throw StateError('$port has a tap already');
+    _taps[port] = tap;
+    await _gate?.future;
+  }
+
+  /// Forgets the tap of [port]; does nothing when it has none. Throws a
+  /// [MidiPortGone] for an unknown port.
+  @override
+  Future<void> detachNativeTap(MidiPortId port) async {
+    _call('detachNativeTap $port');
+    _throwIf(_failures.detachNativeTap);
+    _require(port);
+    _taps.remove(port);
+    await _gate?.future;
+  }
+
+  // ...........................................................................
   /// Returns the description of a port of this backend with [nativeId],
   /// without adding it.
   MidiPortInfo portInfo(
@@ -203,12 +244,13 @@ final class FakeMidiBackend implements MidiBackend {
     return port;
   }
 
-  /// Removes the port [id] with its loopbacks and reports it while the
-  /// backend runs; throws a [MidiPortGone] for an unknown port.
+  /// Removes the port [id] with its loopbacks and its tap and reports it
+  /// while the backend runs; throws a [MidiPortGone] for an unknown port.
   void removePort(MidiPortId id) {
     final port = _require(id);
     _ports.remove(id);
     _openPorts.remove(id);
+    _taps.remove(id);
     _loopbacks.remove(id);
     for (final inputs in _loopbacks.values) {
       inputs.remove(id);
@@ -284,6 +326,8 @@ final class FakeMidiBackend implements MidiBackend {
     Object? closePort,
     Object? send,
     Object? cancelPending,
+    Object? attachNativeTap,
+    Object? detachNativeTap,
   }) => _failures = (
     start: start,
     stop: stop,
@@ -291,6 +335,8 @@ final class FakeMidiBackend implements MidiBackend {
     closePort: closePort,
     send: send,
     cancelPending: cancelPending,
+    attachNativeTap: attachNativeTap,
+    detachNativeTap: detachNativeTap,
   );
 
   /// Forgets the recorded [sent] packets and [calls].
@@ -305,6 +351,9 @@ final class FakeMidiBackend implements MidiBackend {
 
   @override
   final MidiCapabilities capabilities;
+
+  /// Whether the inputs take native taps.
+  final bool hasNativeTaps;
 
   /// Creates the timers of BLE scan timeouts.
   final MidiTimerFactory timerFactory;
@@ -336,6 +385,9 @@ final class FakeMidiBackend implements MidiBackend {
   /// The open ports; cannot be modified.
   Set<MidiPortId> get openPorts => Set.unmodifiable(_openPorts);
 
+  /// The native taps attached right now by port; cannot be modified.
+  Map<MidiPortId, MidiNativeTap> get taps => Map.unmodifiable(_taps);
+
   /// The packets sent, in order; cannot be modified.
   List<MidiFakeSentPacket> get sent => List.unmodifiable(_sent);
 
@@ -349,6 +401,7 @@ final class FakeMidiBackend implements MidiBackend {
   final bool _hasNetwork;
   final _ports = <MidiPortId, MidiPortInfo>{};
   final _openPorts = <MidiPortId>{};
+  final _taps = <MidiPortId, MidiNativeTap>{};
   final _loopbacks = <MidiPortId, Set<MidiPortId>>{};
   final _sent = <MidiFakeSentPacket>[];
   final _calls = <String>[];
@@ -361,6 +414,8 @@ final class FakeMidiBackend implements MidiBackend {
     Object? closePort,
     Object? send,
     Object? cancelPending,
+    Object? attachNativeTap,
+    Object? detachNativeTap,
   })
   _failures = (
     start: null,
@@ -369,6 +424,8 @@ final class FakeMidiBackend implements MidiBackend {
     closePort: null,
     send: null,
     cancelPending: null,
+    attachNativeTap: null,
+    detachNativeTap: null,
   );
 
   /// Records the call [call].

@@ -388,6 +388,69 @@ void main() {
       });
     });
 
+    group('supportsNativeTap, attachNativeTap, detachNativeTap', () {
+      const tap = MidiNativeTap(function: 0x10, user: 0x20);
+
+      test('record the taps of the inputs', () async {
+        expect(backend.supportsNativeTap(input.id), isTrue);
+        expect(backend.supportsNativeTap(output.id), isFalse);
+        expect(backend.supportsNativeTap(const MidiPortId('fake:x')), isFalse);
+        await backend.attachNativeTap(input.id, tap);
+        expect(backend.taps, {input.id: tap});
+        expect(() => backend.taps.clear(), throwsUnsupportedError);
+        await backend.detachNativeTap(input.id);
+        await backend.detachNativeTap(input.id);
+        expect(backend.taps, isEmpty);
+        expect(
+          backend.calls,
+          equals([
+            'attachNativeTap fake:in',
+            'detachNativeTap fake:in',
+            'detachNativeTap fake:in',
+          ]),
+        );
+      });
+
+      test('throw for unknown ports, outputs and a second tap', () async {
+        const unknown = MidiPortId('fake:x');
+        await expectLater(
+          backend.attachNativeTap(unknown, tap),
+          throwsA(isA<MidiPortGone>()),
+        );
+        await expectLater(
+          backend.detachNativeTap(unknown),
+          throwsA(isA<MidiPortGone>()),
+        );
+        await expectLater(
+          backend.attachNativeTap(output.id, tap),
+          throwsA(isA<ArgumentError>()),
+        );
+        await backend.attachNativeTap(input.id, tap);
+        await expectLater(
+          backend.attachNativeTap(input.id, tap),
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('refuse taps without hasNativeTaps', () async {
+        final plain = FakeMidiBackend(hasNativeTaps: false);
+        final port = plain.addPort(
+          plain.portInfo('in', direction: MidiDirection.input),
+        );
+        expect(plain.supportsNativeTap(port.id), isFalse);
+        await expectLater(
+          plain.attachNativeTap(port.id, tap),
+          throwsA(isA<MidiUnsupported>()),
+        );
+      });
+
+      test('forget the tap of a removed port', () async {
+        await backend.attachNativeTap(input.id, tap);
+        backend.removePort(input.id);
+        expect(backend.taps, isEmpty);
+      });
+    });
+
     group('failWith(...)', () {
       test('makes the calls throw until replaced', () async {
         final error = StateError('broken');
@@ -398,6 +461,8 @@ void main() {
           closePort: error,
           send: error,
           cancelPending: error,
+          attachNativeTap: error,
+          detachNativeTap: error,
         );
         for (final call in <Future<void> Function()>[
           () => backend.start(host),
@@ -406,6 +471,11 @@ void main() {
           () => backend.closePort(input.id),
           () => backend.send(output.id, bytes('f8')),
           () => backend.cancelPending(output.id),
+          () => backend.attachNativeTap(
+            input.id,
+            const MidiNativeTap(function: 1, user: 2),
+          ),
+          () => backend.detachNativeTap(input.id),
         ]) {
           await expectLater(call(), throwsA(same(error)));
         }
@@ -425,6 +495,11 @@ void main() {
           () => backend.send(output.id, bytes('f8')),
           () => backend.cancelPending(output.id),
           () => backend.closePort(input.id),
+          () => backend.attachNativeTap(
+            input.id,
+            const MidiNativeTap(function: 1, user: 2),
+          ),
+          () => backend.detachNativeTap(input.id),
           backend.stop,
           () => backend.start(host),
         ]) {
@@ -437,7 +512,7 @@ void main() {
           ..releaseCalls()
           ..releaseCalls();
         await pumpEventQueue();
-        expect(completed, 6);
+        expect(completed, 8);
       });
     });
 

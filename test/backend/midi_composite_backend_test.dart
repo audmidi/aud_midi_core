@@ -25,6 +25,45 @@ final class _RecordingHost implements MidiBackendHost {
   void diagnostic(MidiDiagnostic diagnostic) => diagnostics.add(diagnostic);
 }
 
+/// A backend without native taps that accepts every call.
+final class _PlainBackend implements MidiBackend {
+  @override
+  Future<void> start(MidiBackendHost host) async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<void> openPort(MidiPortId port) async {}
+
+  @override
+  Future<void> closePort(MidiPortId port) async {}
+
+  @override
+  Future<void> send(MidiPortId port, MidiPacket packet) async {}
+
+  @override
+  Future<void> cancelPending(MidiPortId port) async {}
+
+  @override
+  String get name => 'plain';
+
+  @override
+  MidiCapabilities get capabilities => const MidiCapabilities.none();
+
+  @override
+  List<MidiPortInfo> get ports => const [];
+
+  @override
+  MidiVirtualPortsBackend? get virtualPorts => null;
+
+  @override
+  MidiBluetoothBackend? get bluetooth => null;
+
+  @override
+  MidiNetworkBackend? get network => null;
+}
+
 void main() {
   late _RecordingHost host;
   late FakeMidiBackend os;
@@ -200,6 +239,56 @@ void main() {
           await expectLater(call(), throwsA(isA<MidiPortGone>()));
         }
         await composite.closePort(unknown);
+        expect(os.calls, equals(['start']));
+      });
+    });
+
+    group('supportsNativeTap, attachNativeTap, detachNativeTap', () {
+      const tap = MidiNativeTap(function: 3, user: 4);
+
+      test('go to the backend named by the port id', () async {
+        final osIn = os.addPort(
+          os.portInfo('in', direction: MidiDirection.input),
+        );
+        final composite = MidiCompositeBackend(backends: [os, network]);
+        expect(composite, isA<MidiNativeTapBackend>());
+        expect(composite.supportsNativeTap(osIn.id), isFalse);
+        await composite.start(host);
+        expect(composite.supportsNativeTap(osIn.id), isTrue);
+        expect(composite.supportsNativeTap(osOut.id), isFalse);
+        expect(composite.supportsNativeTap(const MidiPortId('x:in')), isFalse);
+        await composite.attachNativeTap(osIn.id, tap);
+        expect(os.taps, {osIn.id: tap});
+        await composite.detachNativeTap(osIn.id);
+        expect(os.taps, isEmpty);
+        expect(
+          os.calls,
+          equals(['start', 'attachNativeTap os:in', 'detachNativeTap os:in']),
+        );
+      });
+
+      test('refuse backends without native taps', () async {
+        final plain = _PlainBackend();
+        final composite = MidiCompositeBackend(backends: [os, plain]);
+        await composite.start(host);
+        const port = MidiPortId('plain:in');
+        expect(composite.supportsNativeTap(port), isFalse);
+        await expectLater(
+          composite.attachNativeTap(port, tap),
+          throwsA(isA<MidiUnsupported>()),
+        );
+        await composite.detachNativeTap(port);
+      });
+
+      test('treat ports of unknown backends as gone', () async {
+        final composite = MidiCompositeBackend(backends: [os]);
+        await composite.start(host);
+        const unknown = MidiPortId('webmidi:in');
+        await expectLater(
+          composite.attachNativeTap(unknown, tap),
+          throwsA(isA<MidiPortGone>()),
+        );
+        await composite.detachNativeTap(unknown);
         expect(os.calls, equals(['start']));
       });
     });

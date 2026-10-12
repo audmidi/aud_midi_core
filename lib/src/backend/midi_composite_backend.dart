@@ -10,6 +10,8 @@ import '../error/midi_exception.dart';
 import 'midi_backend.dart';
 import 'midi_backend_host.dart';
 import 'midi_bluetooth_backend.dart';
+import 'midi_native_tap.dart';
+import 'midi_native_tap_backend.dart';
 import 'midi_network_backend.dart';
 import 'midi_virtual_ports_backend.dart';
 
@@ -21,8 +23,10 @@ import 'midi_virtual_ports_backend.dart';
 /// name as prefix; calls about a port go to the backend whose
 /// [MidiBackend.name] is the prefix of the port id. The capabilities and
 /// ports of all running backends are merged. The sub-APIs are the ones
-/// given to the constructor, otherwise the first a backend offers.
-final class MidiCompositeBackend implements MidiBackend {
+/// given to the constructor, otherwise the first a backend offers. Native
+/// taps go to the backend of the port when it implements
+/// [MidiNativeTapBackend].
+final class MidiCompositeBackend implements MidiBackend, MidiNativeTapBackend {
   /// Creates a composite of [backends], which must all start, and
   /// [optionalBackends], which are left out when they fail to start; such a
   /// failure becomes a [MidiDiagnosticKind.nativeError] diagnostic.
@@ -116,6 +120,43 @@ final class MidiCompositeBackend implements MidiBackend {
   @override
   Future<void> cancelPending(MidiPortId port) async =>
       _route(port).cancelPending(port);
+
+  // ...........................................................................
+  /// Returns whether the started backend of [port] takes a native tap on
+  /// it.
+  @override
+  bool supportsNativeTap(MidiPortId port) {
+    for (final backend in _started) {
+      if (backend.name == port.backend) {
+        return backend is MidiNativeTapBackend &&
+            (backend as MidiNativeTapBackend).supportsNativeTap(port);
+      }
+    }
+    return false;
+  }
+
+  /// Attaches [tap] through the backend of [port]; throws a
+  /// [MidiUnsupported] when that backend has no native taps.
+  @override
+  Future<void> attachNativeTap(MidiPortId port, MidiNativeTap tap) async {
+    final backend = _route(port);
+    if (backend is! MidiNativeTapBackend) {
+      throw MidiUnsupported('Native taps of ${backend.name}');
+    }
+    return (backend as MidiNativeTapBackend).attachNativeTap(port, tap);
+  }
+
+  /// Detaches the tap of [port] through its backend; does nothing for a
+  /// port of no started backend or of one without native taps.
+  @override
+  Future<void> detachNativeTap(MidiPortId port) async {
+    for (final backend in _started) {
+      if (backend.name != port.backend) continue;
+      if (backend is MidiNativeTapBackend) {
+        return (backend as MidiNativeTapBackend).detachNativeTap(port);
+      }
+    }
+  }
 
   // ...........................................................................
   @override
