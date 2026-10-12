@@ -14,6 +14,7 @@ void main() {
   const permissionDenied = MidiPermissionDenied.new;
   const portGone = MidiPortGone.new;
   const nativeError = MidiNativeError.new;
+  const timeout = MidiTimeout.new;
 
   // Returns the name of the kind of [exception], exhaustively.
   String kindOf(MidiException exception) => switch (exception) {
@@ -21,19 +22,21 @@ void main() {
     MidiPermissionDenied() => 'permission',
     MidiPortGone() => 'gone',
     MidiNativeError() => 'native',
+    MidiTimeout() => 'timeout',
   };
 
   group('MidiException', () {
-    test('has exactly four kinds, all of them exceptions', () {
+    test('has exactly five kinds, all of them exceptions', () {
       final exceptions = <MidiException>[
         unsupported('Virtual ports'),
         permissionDenied(MidiPermission.bluetooth),
         portGone(const MidiPortId('fake:in')),
         nativeError(api: 'MIDIClientCreate', code: -10830),
+        timeout('It did not happen', const Duration(seconds: 2)),
       ];
       expect(
         exceptions.map(kindOf),
-        equals(['unsupported', 'permission', 'gone', 'native']),
+        equals(['unsupported', 'permission', 'gone', 'native', 'timeout']),
       );
       expect(exceptions, everyElement(isA<Exception>()));
     });
@@ -46,6 +49,7 @@ void main() {
         MidiPermissionDenied(MidiPermission.bluetooth),
         MidiPortGone(MidiPortId('fake:in')),
         MidiNativeError(api: 'MIDISend', code: 7),
+        MidiTimeout('It did not happen', Duration(seconds: 2)),
       ];
       expect(
         [for (final exception in exceptions) exception.toString()],
@@ -54,6 +58,7 @@ void main() {
           'MidiPermissionDenied: Permission denied: MidiPermission.bluetooth',
           'MidiPortGone: Port is gone: fake:in',
           'MidiNativeError: MIDISend failed with 7',
+          'MidiTimeout: It did not happen within 2000 ms',
         ]),
       );
       expect(

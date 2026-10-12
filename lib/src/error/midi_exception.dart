@@ -83,3 +83,21 @@ final class MidiNativeError extends MidiException {
   @override
   String get message => '$api failed with $code';
 }
+
+// #############################################################################
+/// Something the call waits for did not happen within [timeout].
+final class MidiTimeout extends MidiException {
+  /// Creates the exception; [what] describes what did not happen, e.g.
+  /// `The CoreMIDI device "Keys" did not appear`.
+  const MidiTimeout(this.what, this.timeout);
+
+  // ...........................................................................
+  /// What did not happen.
+  final String what;
+
+  /// How long the call waited.
+  final Duration timeout;
+
+  @override
+  String get message => '$what within ${timeout.inMilliseconds} ms';
+}
