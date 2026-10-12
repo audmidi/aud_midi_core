@@ -13,7 +13,10 @@
 - Add the Bluetooth system picker interface and MidiTimeout
 
 - MidiBluetoothSystemPicker, an optional interface for backends with a system device picker
+
 - MidiTimeout for operations that do not complete in time
+
+- Add review fixes of ticket 26
 
 ## 0.1.0 - 2026-10-07
 

@@ -55,7 +55,7 @@ final class MidiNativeTap {
 
 // #############################################################################
 /// The kinds of calls a [MidiNativeTap] receives, the `kind` argument of
-/// its function.
+/// its function. The values are ABI, never renumber them.
 abstract final class MidiNativeTapKind {
   /// UMP words in host byte order, complete packets.
   static const int ump = 1;

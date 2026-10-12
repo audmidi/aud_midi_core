@@ -126,11 +126,8 @@ final class MidiCompositeBackend implements MidiBackend, MidiNativeTapBackend {
   /// it.
   @override
   bool supportsNativeTap(MidiPortId port) {
-    for (final backend in _started) {
-      if (backend.name == port.backend) {
-        return backend is MidiNativeTapBackend &&
-            (backend as MidiNativeTapBackend).supportsNativeTap(port);
-      }
+    if (_startedOf(port) case final MidiNativeTapBackend t) {
+      return t.supportsNativeTap(port);
     }
     return false;
   }
@@ -140,21 +137,18 @@ final class MidiCompositeBackend implements MidiBackend, MidiNativeTapBackend {
   @override
   Future<void> attachNativeTap(MidiPortId port, MidiNativeTap tap) async {
     final backend = _route(port);
-    if (backend is! MidiNativeTapBackend) {
-      throw MidiUnsupported('Native taps of ${backend.name}');
+    if (backend case final MidiNativeTapBackend t) {
+      return t.attachNativeTap(port, tap);
     }
-    return (backend as MidiNativeTapBackend).attachNativeTap(port, tap);
+    throw MidiUnsupported('Native taps of ${backend.name}');
   }
 
   /// Detaches the tap of [port] through its backend; does nothing for a
   /// port of no started backend or of one without native taps.
   @override
   Future<void> detachNativeTap(MidiPortId port) async {
-    for (final backend in _started) {
-      if (backend.name != port.backend) continue;
-      if (backend is MidiNativeTapBackend) {
-        return (backend as MidiNativeTapBackend).detachNativeTap(port);
-      }
+    if (_startedOf(port) case final MidiNativeTapBackend t) {
+      return t.detachNativeTap(port);
     }
   }
 
@@ -227,11 +221,15 @@ final class MidiCompositeBackend implements MidiBackend, MidiNativeTapBackend {
 
   /// Returns the started backend that owns [port], or throws a
   /// [MidiPortGone].
-  MidiBackend _route(MidiPortId port) {
+  MidiBackend _route(MidiPortId port) =>
+      _startedOf(port) ?? (throw MidiPortGone(port));
+
+  /// Returns the started backend that owns [port], or null.
+  MidiBackend? _startedOf(MidiPortId port) {
     for (final backend in _started) {
       if (backend.name == port.backend) return backend;
     }
-    throw MidiPortGone(port);
+    return null;
   }
 
   /// Returns the first sub-API [of] returns for an active backend.
