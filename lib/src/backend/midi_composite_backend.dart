@@ -10,6 +10,8 @@ import '../error/midi_exception.dart';
 import 'midi_backend.dart';
 import 'midi_backend_host.dart';
 import 'midi_bluetooth_backend.dart';
+import 'midi_native_tap.dart';
+import 'midi_native_tap_backend.dart';
 import 'midi_network_backend.dart';
 import 'midi_virtual_ports_backend.dart';
 
@@ -21,8 +23,10 @@ import 'midi_virtual_ports_backend.dart';
 /// name as prefix; calls about a port go to the backend whose
 /// [MidiBackend.name] is the prefix of the port id. The capabilities and
 /// ports of all running backends are merged. The sub-APIs are the ones
-/// given to the constructor, otherwise the first a backend offers.
-final class MidiCompositeBackend implements MidiBackend {
+/// given to the constructor, otherwise the first a backend offers. Native
+/// taps go to the backend of the port when it implements
+/// [MidiNativeTapBackend].
+final class MidiCompositeBackend implements MidiBackend, MidiNativeTapBackend {
   /// Creates a composite of [backends], which must all start, and
   /// [optionalBackends], which are left out when they fail to start; such a
   /// failure becomes a [MidiDiagnosticKind.nativeError] diagnostic.
@@ -118,6 +122,37 @@ final class MidiCompositeBackend implements MidiBackend {
       _route(port).cancelPending(port);
 
   // ...........................................................................
+  /// Returns whether the started backend of [port] takes a native tap on
+  /// it.
+  @override
+  bool supportsNativeTap(MidiPortId port) {
+    if (_startedOf(port) case final MidiNativeTapBackend t) {
+      return t.supportsNativeTap(port);
+    }
+    return false;
+  }
+
+  /// Attaches [tap] through the backend of [port]; throws a
+  /// [MidiUnsupported] when that backend has no native taps.
+  @override
+  Future<void> attachNativeTap(MidiPortId port, MidiNativeTap tap) async {
+    final backend = _route(port);
+    if (backend case final MidiNativeTapBackend t) {
+      return t.attachNativeTap(port, tap);
+    }
+    throw MidiUnsupported('Native taps of ${backend.name}');
+  }
+
+  /// Detaches the tap of [port] through its backend; does nothing for a
+  /// port of no started backend or of one without native taps.
+  @override
+  Future<void> detachNativeTap(MidiPortId port) async {
+    if (_startedOf(port) case final MidiNativeTapBackend t) {
+      return t.detachNativeTap(port);
+    }
+  }
+
+  // ...........................................................................
   @override
   final String name;
 
@@ -186,11 +221,15 @@ final class MidiCompositeBackend implements MidiBackend {
 
   /// Returns the started backend that owns [port], or throws a
   /// [MidiPortGone].
-  MidiBackend _route(MidiPortId port) {
+  MidiBackend _route(MidiPortId port) =>
+      _startedOf(port) ?? (throw MidiPortGone(port));
+
+  /// Returns the started backend that owns [port], or null.
+  MidiBackend? _startedOf(MidiPortId port) {
     for (final backend in _started) {
       if (backend.name == port.backend) return backend;
     }
-    throw MidiPortGone(port);
+    return null;
   }
 
   /// Returns the first sub-API [of] returns for an active backend.

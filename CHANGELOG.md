@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.1 - 2026-10-12
+
+### Added
+
+- Add the native tap contract and its fake
+
+- MidiNativeTap and MidiNativeTapBackend: a backend calls a native function for an input port on its receive thread (native-001)
+
+- FakeMidiBackend records taps; the composite backend routes them to the port's backend
+
+- Add the Bluetooth system picker interface and MidiTimeout
+
+- MidiBluetoothSystemPicker, an optional interface for backends with a system device picker
+
+- MidiTimeout for operations that do not complete in time
+
+- Add review fixes of ticket 26
+
 ## 0.1.0 - 2026-10-07
 
 ### Added

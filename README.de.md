@@ -16,11 +16,12 @@ Teil der aud_midi-Familie, siehe [aud_midi](https://github.com/audmidi/aud_midi)
 
 Implementiert; jede Datei ist auf der Dart VM zu 100 % durch ihre eigenen Tests abgedeckt, die reinen Dart-Tests laufen auch in Chrome (`dart test -p chrome test/clock test/engine test/fake test/backend test/ble test/error`).
 
-- Verträge: `MidiBackend` mit den Unter-APIs für virtuelle Ports, Bluetooth und Netzwerk, `MidiBackendHost`, `MidiServiceAdvertiser`, `MidiBleTransport`, `MidiException`.
+- Verträge: `MidiBackend` mit den Unter-APIs für virtuelle Ports, Bluetooth und Netzwerk, `MidiBackendHost`, `MidiServiceAdvertiser`, `MidiBleTransport`, `MidiBluetoothSystemPicker` (die Bluetooth-Geräteauswahl des Betriebssystems), `MidiException` mit `MidiTimeout`.
+- Native Taps: `MidiNativeTapBackend` neben `MidiBackend`, per `is` gefunden, hängt einen `MidiNativeTap` (die Adressen einer C-Funktion und ihres User-Pointers) an einen Eingangsport; das Backend ruft ihn auf seinem eigenen Empfangs-Thread mit UMP-Wörtern oder MIDI-1.0-Bytes und einem Host-Zeitstempel in Nanosekunden auf, und mit `gone`, wenn der Port verschwindet. Ein Detach ist erst nach dem letzten Aufruf abgeschlossen. `MidiCompositeBackend` leitet Taps an das Backend des Ports weiter.
 - Uhr: `MidiSystemClock` (`Timeline.now` auf der VM, `performance.now()` im Browser), `MidiClockMapper` sowie `MidiFakeClock` mit `MidiFakeTimers` für Tests.
 - `MidiEngine` betreibt ein Backend im aktuellen Isolate: je Eingang ein MIDI-1.0-Parser oder UMP-Decoder, JR-Timestamps als Senderzeit, optionale Übersetzung, begrenzte Warteschlangen mit Überlauf-Diagnosen; je Ausgang Übersetzung ins Protokoll des Ports, Kodierung, Planung durch das Betriebssystem oder den Software-Scheduler (mit Vorlauf für Ports, die nicht verwerfen können), `cancelPending` und Panic; Port-Registry mit Re-Plug-Kandidaten und Geräten; Diagnose-Bus; eine feste Reihenfolge beim Herunterfahren.
 - `MidiCompositeBackend` kombiniert Backends, `MidiBleBluetoothBackend` betreibt BLE-MIDI über einen GATT-Client.
-- `FakeMidiBackend` mit Loopback, Hotplug, Fehlern sowie virtuellen Ports, BLE- und Netzwerk-Sessions im Speicher. Die Vertragstests laufen dagegen: Sie belegen die Dart-Abstraktion, keine native Anbindung.
+- `FakeMidiBackend` mit Loopback, Hotplug, Fehlern, aufgezeichneten nativen Taps sowie virtuellen Ports, BLE- und Netzwerk-Sessions im Speicher. Die Vertragstests laufen dagegen: Sie belegen die Dart-Abstraktion, keine native Anbindung.
 
 Siehe den Plan in [aud_midi_pm](https://github.com/audmidi/aud_midi_pm/blob/main/doc/2026-Q4/tickets/2026-10-06-aud_midi_01-initial-midi-implementation.md).
 
