@@ -249,9 +249,8 @@ void main() {
       });
 
       test('ignores the group on byte ports', () async {
-        await pipelineOf(
-          port(group: 3),
-        ).sendMessages(const [MidiStart()], group: 9);
+        await pipelineOf(port(group: 3))
+            .sendMessages(const [MidiStart()], group: 9);
         expect(
           packets(),
           equals([
@@ -301,9 +300,8 @@ void main() {
       });
 
       test('hands future packets to a port that schedules', () async {
-        await pipelineOf(
-          scheduledPort(cancel: true),
-        ).sendMessages(const [MidiStart()], at: const MidiTime(9000));
+        await pipelineOf(scheduledPort(cancel: true))
+            .sendMessages(const [MidiStart()], at: const MidiTime(9000));
         expect(
           sent,
           equals([

@@ -65,7 +65,7 @@ void main() {
       final MidiNetworkBackend network = alwaysOn;
       const host = MidiNetworkHostInfo(
         name: 'Mac',
-        address: '10.0.0.2',
+        address: '192.0.2.2',
         port: 5004,
       );
       final session = await network.enable(name: 'Studio');
