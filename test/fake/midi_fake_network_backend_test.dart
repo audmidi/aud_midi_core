@@ -11,11 +11,11 @@ import 'package:test/test.dart';
 void main() {
   const mac = MidiNetworkHostInfo(
     name: 'Mac',
-    address: '10.0.0.2',
+    address: '192.0.2.2',
     port: 5004,
     source: MidiNetworkHostSource.bonjour,
   );
-  const pc = MidiNetworkHostInfo(name: 'PC', address: '10.0.0.3', port: 5006);
+  const pc = MidiNetworkHostInfo(name: 'PC', address: '192.0.2.3', port: 5006);
   late FakeMidiBackend backend;
   late MidiFakeNetworkBackend network;
   late List<MidiNetworkSessionInfo> changes;
@@ -83,15 +83,15 @@ void main() {
             host: mac,
             state: MidiNetworkConnectionState.connected,
             portIds: const [
-              MidiPortId('fake:10.0.0.2:5004/input'),
-              MidiPortId('fake:10.0.0.2:5004/output'),
+              MidiPortId('fake:192.0.2.2:5004/input'),
+              MidiPortId('fake:192.0.2.2:5004/output'),
             ],
           ),
         );
         expect(
           backend.ports.first,
           MidiPortInfo(
-            id: const MidiPortId('fake:10.0.0.2:5004/input'),
+            id: const MidiPortId('fake:192.0.2.2:5004/input'),
             name: 'Mac',
             direction: MidiDirection.input,
             transport: MidiTransport.network,

@@ -12,5 +12,7 @@ import 'dart:async';
 ///
 /// `Timer.new` is the real implementation; `MidiFakeTimers.create` lets
 /// tests move time by hand.
-typedef MidiTimerFactory =
-    Timer Function(Duration duration, void Function() callback);
+typedef MidiTimerFactory = Timer Function(
+  Duration duration,
+  void Function() callback,
+);

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Require Dart 3.13 and upgrade the dependencies
+
+- Require Dart 3.13
+- Upgrade dna_audanika to ^0.1.0
+- Upgrade helix to ^1.14.0
+- Upgrade aud_midi_standard to ^0.2.0
+- Add the quick check pipeline name to dna/_vars.json
+- Reformat 2 files with the Dart 3.13 formatter
+- Add the blog post of this change, in English and German
+- Bring the README to the README template, in English and German
+- Replace organisation identifiers in examples by placeholders
+
 ## 0.1.3 - 2026-10-24
 
 ## 0.1.2 - 2026-10-24
@@ -29,6 +45,7 @@
 - MidiTimeout for operations that do not complete in time
 
 - Add review fixes of ticket 26
+
 
 ## 0.1.0 - 2026-10-07
 
