@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Require Flutter 3.50 and Dart 3.14, build the DNA
+
 ## 0.2.0 - 2026-10-28
 
 ### Changed
@@ -27,6 +33,7 @@
 - Upgrade the dependencies published since the first pass
 
 - Lift the lock file to the newest resolvable versions
+
 
 ## 0.1.3 - 2026-10-24
 
@@ -57,6 +64,7 @@
 - MidiTimeout for operations that do not complete in time
 
 - Add review fixes of ticket 26
+
 
 ## 0.1.0 - 2026-10-07
 
