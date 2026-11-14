@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 - 2026-11-14
 
 ### Changed
 
@@ -34,7 +34,6 @@
 
 - Lift the lock file to the newest resolvable versions
 
-
 ## 0.1.3 - 2026-10-24
 
 ## 0.1.2 - 2026-10-24
@@ -64,7 +63,6 @@
 - MidiTimeout for operations that do not complete in time
 
 - Add review fixes of ticket 26
-
 
 ## 0.1.0 - 2026-10-07
 
